@@ -79,6 +79,11 @@ Thanks to our prior work with Wit.AI we were able to implement Sentiment Analysi
 | 'I failed my exam' | `negative` | 'Sometimes life is hard, you can do it!' |
 | 'It is good to see you!' | `positive` | 'Hi There!' |
 
+**Implementation of Wikipedia API**
+
+I implemented wikipedia api so our bot can response to wikipedia query. The bot was trained to understand wiki queries and can output the query entity to our program. This is then sent to Wiki API and the first sentence of the article is extracted and outputted to the user.
+
+
 **Implementation of Socket.IO for messaging between user and bot**
 
 Our team implemented [Socket.IO](https://socket.io/)  originally as a means to allow our bot to converse with other bots, however after many attempts to connect with other bot’s, we were unsuccessful since the Apostle was too intelligent for other bots to understand. Thankfully, we were able to refactor the code and utilize it to send messages back and forth between the user and the bot. This enables us to have as many simultaneous independent conversations with the bot across multiple chat windows.

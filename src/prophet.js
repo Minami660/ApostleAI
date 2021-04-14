@@ -5,6 +5,7 @@ const { Wit } = require("node-wit");
 const { json } = require("express");
 const scripture = require("./scripture");
 const porter = require("./porterStemming.js");
+const https = require("https");
 
 // init the wit client using config file
 const client = new Wit({
@@ -44,26 +45,74 @@ Bot.prototype.sendMessage = function (msg) {
         // create response object to be sent to the server
         let response = {
           sender: this.id,
-          msg: this.pickReply(data, scripture.responses),
+          msg: "",
         };
 
-        // temporary console return data with information about the bots response
-        console.log(
-          logger.getTime() +
+        if (data.intents[0].name == "wikiQuery") {
+          getWikiData(data, this);
+        } else {
+          response.msg = this.pickReply(data, scripture.responses);
+          // temporary console return data with information about the bots response
+          console.log(
+            logger.getTime() +
             "[Bot with ID " +
             this.id +
             "]: sending message " +
             logger.info(JSON.stringify(response))
-        );
+          );
 
-        // Emit a message event on the socket to be picked up by server
-        // this.socket.emit("Intent: ", data.intents[0].name);
-        this.socket.emit("message", response);
+          // Emit a message event on the socket to be picked up by server
+          // this.socket.emit("Intent: ", data.intents[0].name);
+          this.socket.emit("message", response);
+        }
+
+
       })
       // catch errors and log it to console on the error stream
       .catch(logger.error(console.error));
   }, 1000);
 };
+
+function getWikiData(data, bot) {
+  let response = {
+    sender: bot.id,
+    msg: "",
+  };
+  wikiQuery = data.entities["wit$wikipedia_search_query:wikipedia_search_query"][0].value;
+  wikiQuery = wikiQuery.slice(0,-1);
+  //response.msg = wikiQuery
+
+  url = "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&generator=prefixsearch&redirects=1&converttitles=1&formatversion=2&exintro=1&explaintext=1&gpssearch=";
+  url += wikiQuery;
+
+
+  https.get(url, function (resp){
+    var data = "";
+    
+    resp.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    resp.on('end', () => {
+      
+      
+      wikiJSON = JSON.parse(data).query.pages;
+      console.log("Wiki Data: " + wikiJSON);
+      for(page in wikiJSON){
+        if(wikiJSON[page].index == 1){
+          console.log("Wiki Output" + wikiJSON[page].extract.split(".")[0]);
+          response.msg = wikiJSON[page].extract.split(".")[0];
+        }
+      }
+
+      bot.socket.emit("message", response);
+
+    });
+  });
+
+
+  
+}
 
 // Bots function to retrieve a reply from the scripture [lexicon]
 Bot.prototype.pickReply = function (input, responses) {
@@ -75,9 +124,9 @@ Bot.prototype.pickReply = function (input, responses) {
   if (input.intents[0] == null) {
     console.log(
       logger.getTime() +
-        logger.error(
-          "Note: Could not find any intent in user input! Selecting generic 'unknown' response now... "
-        )
+      logger.error(
+        "Note: Could not find any intent in user input! Selecting generic 'unknown' response now... "
+      )
     );
     botReply =
       scripture.unknown[Math.floor(Math.random() * scripture.unknown.length)];
@@ -94,7 +143,7 @@ Bot.prototype.pickReply = function (input, responses) {
     if (intent == input.intents[0].name) {
       botReply =
         responses[intent][sentiment][
-          Math.floor(Math.random() * responses[intent][sentiment].length)
+        Math.floor(Math.random() * responses[intent][sentiment].length)
         ];
       console.log(
         logger.getTime() + logger.info("Intent: ") + input.intents[0].name
@@ -105,13 +154,13 @@ Bot.prototype.pickReply = function (input, responses) {
       ) {
         console.log(
           logger.getTime() +
-            "No " +
-            sentiment +
-            " sentiment response found, defaulting to neutral response"
+          "No " +
+          sentiment +
+          " sentiment response found, defaulting to neutral response"
         );
         botReply =
           responses[intent]["neutral"][
-            Math.floor(Math.random() * responses[intent]["neutral"].length)
+          Math.floor(Math.random() * responses[intent]["neutral"].length)
           ];
       }
 
@@ -122,11 +171,11 @@ Bot.prototype.pickReply = function (input, responses) {
   //Message if AI interpreted intent is not available in code
   console.log(
     logger.getTime() +
-      logger.error(
-        "Note: Recognized intent '" +
-          input.intents[0].name +
-          "' but could not find in scripture.js"
-      )
+    logger.error(
+      "Note: Recognized intent '" +
+      input.intents[0].name +
+      "' but could not find in scripture.js"
+    )
   );
 
   botReply =
